@@ -1,0 +1,17 @@
+NAME
+    Plack::Middleware::CSRFBlock -
+
+SYNOPSIS
+      use Plack::Middleware::CSRFBlock;
+
+DESCRIPTION
+    Plack::Middleware::CSRFBlock is
+
+AUTHOR
+    Rintaro Ishizaki <rintaro@cpan.org>
+
+SEE ALSO
+LICENSE
+    This library is free software; you can redistribute it and/or modify it
+    under the same terms as Perl itself.
+
