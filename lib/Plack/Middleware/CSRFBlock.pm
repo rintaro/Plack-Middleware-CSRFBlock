@@ -1,13 +1,20 @@
-package Plack::Middleware::CSRFBlock; use parent qw(Plack::Middleware);
+package Plack::Middleware::CSRFBlock;
+use parent qw(Plack::Middleware);
 use strict;
 use warnings;
 our $VERSION = '0.01';
+
+use HTML::Parser;
+use Plack::Util::Accessor qw(
+    parameter_name token_length session_key blocked onetime
+    _param_re_urlenc _param_re_formdata _token_generator
+);
 
 sub prepare_app {
     my $self = shift;
 
     $self->parameter_name('SEC') unless defined $self->parameter_name;
-    $self->token_length(16) unless defined $self->parameter_length;
+    $self->token_length(16) unless defined $self->token_length;
     $self->session_key('csrfblock.token') unless defined $self->session_key;
 
     my $parameter_name = $self->parameter_name;
@@ -26,7 +33,7 @@ sub prepare_app {
         ([0-9a-f]{$token_length})\x0d\x0a
     /x);
 
-    $self->token_generator(sub {
+    $self->_token_generator(sub {
         my $token = Digest::SHA1::sha1_hex(rand() . $$ . {} . time);
         substr($token, 0 , $token_length);
     });
@@ -111,7 +118,7 @@ sub call {
 
     # generate token
     if(not $token) {
-        $session->{$self->session_key} = $token = $self->token_generator->();
+        $session->{$self->session_key} = $token = $self->_token_generator->();
     }
 
     return $self->response_cb($self->app->($env), sub {
@@ -139,8 +146,8 @@ sub call {
                     }
                 }
 
-            }, "tagname, attr"],
-            default_h => [\@out , 'text'],
+            }, "tagname, attr, text"],
+            default_h => [\@out , '@{text}'],
         );
         my $done;
             
