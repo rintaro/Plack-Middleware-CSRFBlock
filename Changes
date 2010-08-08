@@ -1,4 +1,7 @@
 Revision history for Perl extension Plack::Middleware::CSRFBlock
 
+0.02    Sun Aug  8 23:46:00 2010
+        - prerequests Plack, Plack::Middleware::Session
+
 0.01    Sat Aug  7 07:22:48 2010
         - original version

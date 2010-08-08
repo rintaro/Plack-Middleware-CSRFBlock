@@ -4,7 +4,8 @@ all_from 'lib/Plack/Middleware/CSRFBlock.pm';
 readme_from 'lib/Plack/Middleware/CSRFBlock.pm';
 githubmeta;
 
-# requires '';
+requires 'Plack';
+requires 'Plack::Middleware::Session';
 
 tests 't/*.t';
 author_tests 'xt';
