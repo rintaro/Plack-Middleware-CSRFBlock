@@ -8,7 +8,7 @@ use HTML::Parser;
 use Plack::TempBuffer;
 use Plack::Util::Accessor qw(
     parameter_name token_length session_key blocked onetime
-    _param_re_urlenc _param_re_formdata _token_generator
+    _param_re _token_generator
 );
 
 sub prepare_app {
@@ -21,18 +21,19 @@ sub prepare_app {
     my $parameter_name = $self->parameter_name;
     my $token_length = $self->token_length;
 
-    $self->_param_re_urlenc(qr/
-        (?:^|&)
-        $parameter_name=([0-9a-f]{$token_length})
-        (?:&|$)
-    /x);
-
-    $self->_param_re_formdata(qr/
-        ; ?name="?$parameter_name"?(?:;[^\x0d]*)?\x0d\x0a
-        (?:[^\x0d]+\x0d\x0a)*
-        \x0d\x0a
-        ([0-9a-f]{$token_length})\x0d\x0a
-    /x);
+    $self->_param_re({
+        'application/x-www-form-urlencoded' => qr/
+            (?:^|&)
+            $parameter_name=([0-9a-f]{$token_length})
+            (?:&|$)
+        /x,
+        'multipart/form-data' => qr/
+            ; ?name="?$parameter_name"?(?:;[^\x0d]*)?\x0d\x0a
+            (?:[^\x0d]+\x0d\x0a)*
+            \x0d\x0a
+            ([0-9a-f]{$token_length})\x0d\x0a
+        /x,
+    });
 
     $self->_token_generator(sub {
         my $token = Digest::SHA1::sha1_hex(rand() . $$ . {} . time);
@@ -48,23 +49,17 @@ sub call {
         die "CSRFBlock needs Session.";
     }
 
-    my $token = $session->{$self->session_key};
-    my $parameter_name = $self->parameter_name;
-
     # input filter
-    if($env->{REQUEST_METHOD} eq 'POST' and not $token) {
-        return $self->token_not_found;
-    }
-    elsif($env->{REQUEST_METHOD} eq 'POST') {
-        my $ct = $env->{CONTENT_TYPE};
+    if($env->{REQUEST_METHOD} eq 'POST' and
+        ($env->{CONTENT_TYPE} eq 'application/x-www-form-urlencoded' or
+         $env->{CONTENT_TYPE} eq 'multipart/form-data')
+    ) {
+        my $token = $session->{$self->session_key}
+            or return $self->token_not_found;
+
         my $cl = $env->{CONTENT_LENGTH};
-        my $re = 
-              $ct eq 'application/x-www-form-urlencoded' ? $self->_param_re_urlenc
-            : $ct eq 'multipart/form-data'               ? $self->_param_re_formdata
-            : undef;
-
+        my $re = $self->_param_re->{$env->{CONTENT_TYPE}};
         my $input = $env->{'psgi.input'};
-
         my $buffer;
 
         if ($env->{'psgix.input.buffered'}) {
@@ -102,12 +97,13 @@ sub call {
             }
         }
 
-        if(not $found) {
+        if($found) {
+            # clear token if onetime option is enabled.
+            delete $session->{$self->session_key} if $self->onetime;
+        }
+        else {
             return $self->token_not_found($env);
         }
-
-        # clear token if onetime option is enabled.
-        undef $token if $self->onetime;
 
         if($buffer) {
             $env->{'psgi.input'} = $buffer->rewind;
@@ -118,10 +114,6 @@ sub call {
         }
     }
 
-    # generate token
-    if(not $token) {
-        $session->{$self->session_key} = $self->_token_generator->();
-    }
 
     return $self->response_cb($self->app->($env), sub {
         my $res = shift;
@@ -132,7 +124,8 @@ sub call {
 
         my @out;
         my $http_host = exists $env->{HTTP_HOST} ? $env->{HTTP_HOST} : $env->{SERVER_NAME};
-        my $token = $session->{$self->session_key};
+        my $token = $session->{$self->session_key} ||= $self->_token_generator->();
+        my $parameter_name = $self->parameter_name;
 
         my $p = HTML::Parser->new(
             api_version => 3,
