@@ -5,6 +5,7 @@ use warnings;
 our $VERSION = '0.02';
 
 use HTML::Parser;
+use Plack::TempBuffer;
 use Plack::Util::Accessor qw(
     parameter_name token_length session_key blocked onetime
     _param_re_urlenc _param_re_formdata _token_generator
@@ -91,6 +92,7 @@ sub call {
                         last if not $buffer;
                     }
                     $buffer->print($buf);
+                    undef $buf;
                     $done = 1;
                 }
             }
