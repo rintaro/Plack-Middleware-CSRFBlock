@@ -118,7 +118,7 @@ sub call {
 
     # generate token
     if(not $token) {
-        $session->{$self->session_key} = $token = $self->_token_generator->();
+        $session->{$self->session_key} = $self->_token_generator->();
     }
 
     return $self->response_cb($self->app->($env), sub {
@@ -129,6 +129,8 @@ sub call {
         }
 
         my @out;
+        my $http_host = exists $env->{HTTP_HOST} ? $env->{HTTP_HOST} : $env->{SERVER_NAME};
+        my $token = $session->{$self->session_key};
 
         my $p = HTML::Parser->new(
             api_version => 3,
@@ -136,21 +138,23 @@ sub call {
                 my($tag, $attr, $text) = @_;
                 push @out, $text;
 
-                #TODO: should we exclude form that action to outside?
-                if(lc($tag) eq 'form') {
-                    no warnings 'uninitialized';
-                    if(lc($attr->{'method'}) eq 'post') {
-                        my $token = $session->{$self->session_key};
-                        # TODO: determine xhtml or html?
-                        push @out, qq{<input type="hidden" name="$parameter_name" value="$token" />};
-                    }
+                no warnings 'uninitialized';
+                if(
+                    lc($tag) ne 'form' or
+                    lc($attr->{'method'}) ne 'post' or
+                    ($attr->{'action'} =~ m{^https?://([^/])+/} and $1 ne $http_host)
+                ) {
+                    return;
                 }
+                # TODO: determine xhtml or html?
+
+                push @out, qq{<input type="hidden" name="$parameter_name" value="$token" />};
 
             }, "tagname, attr, text"],
             default_h => [\@out , '@{text}'],
         );
         my $done;
-            
+
         return sub {
             return if $done;
 
