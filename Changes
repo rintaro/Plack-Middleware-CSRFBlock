@@ -1,5 +1,12 @@
 Revision history for Perl extension Plack::Middleware::CSRFBlock
 
+0.03    Sun Aug 11 03:05:00 2010
+        - Insert token parameter only to <form>s that action is to local site
+        - use Plack::TempBuffer
+        - Refactored
+        - Reset the token only if matched in 'onetime' token mode
+        - Don't check if the request content-type is not supported
+
 0.02    Sun Aug  8 23:46:00 2010
         - prerequests Plack, Plack::Middleware::Session
 
