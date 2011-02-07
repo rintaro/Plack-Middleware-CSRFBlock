@@ -80,7 +80,7 @@ sub call {
             my $read = length $chunk;
             $cl -= $read;
             if($done) {
-                $buffer->print($chunk);
+                $buffer->print($chunk) if $buffer;
             }
             else {
                 $buf .= $chunk;
@@ -89,7 +89,7 @@ sub call {
                         $found = 1;
                         last if not $buffer;
                     }
-                    $buffer->print($buf);
+                    $buffer->print($buf) if $buffer;
                     undef $buf;
                     $done = 1;
                 }
