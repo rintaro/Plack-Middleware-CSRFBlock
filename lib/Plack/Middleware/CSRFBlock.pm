@@ -141,7 +141,7 @@ sub call {
                 if(
                     lc($tag) ne 'form' or
                     lc($attr->{'method'}) ne 'post' or
-                    ($attr->{'action'} =~ m{^https?://([^/])+/} and $1 ne $http_host)
+                    ($attr->{'action'} =~ m{^https?://([^/:]+)[/:]} and $1 ne $http_host)
                 ) {
                     return;
                 }
