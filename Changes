@@ -1,5 +1,9 @@
 Revision history for Perl extension Plack::Middleware::CSRFBlock
 
+0.05    Tue Feb  8 05:30:00 2011
+        - Didn't work for <form action="http://{host}/api" .. like action (full URL)
+        - more tests
+
 0.04    Tue Feb  8 02:10:00 2011
         - Fixed Input/Output filter does not work for Content-Type with charset token (shiba_yu36)
         - Fixed crash when psgix.input.buffered. (shibuya_yu36)

@@ -2,7 +2,7 @@ package Plack::Middleware::CSRFBlock;
 use parent qw(Plack::Middleware);
 use strict;
 use warnings;
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 use HTML::Parser;
 use Plack::TempBuffer;
