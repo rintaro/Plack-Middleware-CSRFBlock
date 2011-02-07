@@ -2,7 +2,7 @@ package Plack::Middleware::CSRFBlock;
 use parent qw(Plack::Middleware);
 use strict;
 use warnings;
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 use HTML::Parser;
 use Plack::TempBuffer;
@@ -52,9 +52,10 @@ sub call {
     }
 
     # input filter
-    if($env->{REQUEST_METHOD} eq 'POST' and
-        ($env->{CONTENT_TYPE} eq 'application/x-www-form-urlencoded' or
-         $env->{CONTENT_TYPE} eq 'multipart/form-data')
+    if(
+        $env->{REQUEST_METHOD} =~ m{^post$}i and
+        ($env->{CONTENT_TYPE} =~ m{^application/x-www-form-urlencoded}i or
+         $env->{CONTENT_TYPE} =~ m{^multipart/form-data}i)
     ) {
         my $token = $session->{$self->session_key}
             or return $self->token_not_found;
@@ -120,7 +121,7 @@ sub call {
     return $self->response_cb($self->app->($env), sub {
         my $res = shift;
         my $ct = Plack::Util::header_get($res->[1], 'Content-Type');
-        if($ct ne 'text/html' and $ct ne 'application/xhtml+xml') {
+        if($ct !~ m{^text/html}i and $ct !~ m{^application/xhtml[+]xml}i){
             return $res;
         }
 
@@ -192,9 +193,9 @@ Plack::Middleware::CSRFBlock - CSRF are never propageted to app
 =head1 SYNOPSIS
 
   use Plack::Builder;
-  
+
   my $app = sub { ... }
-  
+
   builder {
     enable 'Session';
     enable 'CSRFBlock';
@@ -233,7 +234,7 @@ this becomes:
       </form>
   </html>
 
-This affects C<form> tags with C<method="post">, case insensitive. 
+This affects C<form> tags with C<method="post">, case insensitive.
 
 =item input check
 
