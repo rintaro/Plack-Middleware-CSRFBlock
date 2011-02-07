@@ -54,14 +54,15 @@ sub call {
     # input filter
     if(
         $env->{REQUEST_METHOD} =~ m{^post$}i and
-        ($env->{CONTENT_TYPE} =~ m{^application/x-www-form-urlencoded}i or
-         $env->{CONTENT_TYPE} =~ m{^multipart/form-data}i)
+        ($env->{CONTENT_TYPE} =~ m{^(application/x-www-form-urlencoded)}i or
+         $env->{CONTENT_TYPE} =~ m{^(multipart/form-data)}i)
     ) {
+        my $ct = $1;
         my $token = $session->{$self->session_key}
             or return $self->token_not_found;
 
         my $cl = $env->{CONTENT_LENGTH};
-        my $re = $self->_param_re->{$env->{CONTENT_TYPE}};
+        my $re = $self->_param_re->{$ct};
         my $input = $env->{'psgi.input'};
         my $buffer;
 
