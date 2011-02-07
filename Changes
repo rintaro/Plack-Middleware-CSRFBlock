@@ -1,7 +1,7 @@
 Revision history for Perl extension Plack::Middleware::CSRFBlock
 
 0.04    Tue Feb  8 02:10:00 2010
-        - Fixed Input filter does not work for Content-Type with charset token (shiba_yu36)
+        - Fixed Input/Output filter does not work for Content-Type with charset token (shiba_yu36)
         - Fixed crash when psgix.input.buffered. (shibuya_yu36)
 
 0.03    Sun Aug 11 03:05:00 2010
