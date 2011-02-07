@@ -6,6 +6,8 @@ our $VERSION = '0.03';
 
 use HTML::Parser;
 use Plack::TempBuffer;
+use Plack::Util;
+use Digest::SHA1;
 use Plack::Util::Accessor qw(
     parameter_name token_length session_key blocked onetime
     _param_re _token_generator
@@ -243,6 +245,24 @@ Supports C<application/x-www-form-urlencoded> and C<multipart/form-data>.
 =back
 
 =head1 OPTIONS
+
+  use Plack::Builder;
+  
+  my $app = sub { ... }
+  
+  builder {
+    enable 'Session';
+    enable 'CSRFBlock',
+      parameter_name => 'csrf_secret',
+      token_length => 20,
+      session_key => 'csrf_token',
+      blocked => sub {
+        [302, [Location => 'http://www.google.com'], ['']];
+      },
+      onetime => 0,
+      ;
+    $app;
+  }
 
 =over 4
 
