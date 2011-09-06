@@ -122,6 +122,9 @@ sub call {
     return $self->response_cb($self->app->($env), sub {
         my $res = shift;
         my $ct = Plack::Util::header_get($res->[1], 'Content-Type');
+        # prevents warnings if the app isn't setting a content-type
+        return $res
+            if not defined $ct;
         if($ct !~ m{^text/html}i and $ct !~ m{^application/xhtml[+]xml}i){
             return $res;
         }
