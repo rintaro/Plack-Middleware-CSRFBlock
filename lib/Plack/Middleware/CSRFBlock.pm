@@ -127,7 +127,12 @@ sub call {
         }
 
         my @out;
-        my $http_host = exists $env->{HTTP_HOST} ? $env->{HTTP_HOST} : $env->{SERVER_NAME};
+        my $http_host
+            = exists $env->{HTTP_X_FORWARDED_HOST}
+            ? $env->{HTTP_X_FORWARDED_HOST}
+            : exists $env->{HTTP_HOST} ? $env->{HTTP_HOST}
+            :                            $env->{SERVER_NAME};
+ 
         my $token = $session->{$self->session_key} ||= $self->_token_generator->();
         my $parameter_name = $self->parameter_name;
 
