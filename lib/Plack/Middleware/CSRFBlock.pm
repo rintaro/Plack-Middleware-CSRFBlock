@@ -235,7 +235,7 @@ this becomes:
   <html>
     <head><title>input form</title></head>
     <body>
-      <form action="/api" method="post"><input type="hidden" name="SEC" value="0f15ba869f1c0d77" />
+      <form action="/receive" method="post"><input type="hidden" name="SEC" value="0f15ba869f1c0d77" />
         <input type="text" name="email" /><input type="submit" />
       </form>
   </html>
