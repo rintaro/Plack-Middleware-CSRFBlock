@@ -128,6 +128,9 @@ test_psgi app => $app, client => sub {
     ok $res->content =~ /<input type="hidden" name="SEC" value="([0-9a-f]{16})" \/>/, 'form_has_token /form/html';
     my $token = $1;
 
+    # Make sure we *dont* have the meta header here
+    ok $res->content !~ /<meta name="csrftoken" content="([0-9a-f]{8})"\/>/;
+
     $res = $cb->(GET "http://localhost/form/html-charset", Cookie => "sid=$sid");
     is $res->code, 200, 'form /form/html-charset';
     ok $res->content =~ /<input type="hidden" name="SEC" value="([0-9a-f]{16})" \/>/, 'form_has_token /form/html-charset';
@@ -279,6 +282,39 @@ test_psgi app => $app3, client => sub {
     $res = $cb->(POST "http://localhost/post", [TKN => $token, name => 'Plack'], Cookie => "sid=$sid");
     is $res->code, 404, 'w/param:onetime second token use again';
     is $res->content, 'csrf', 'w/param:blocked custom blocked app again';
+};
+
+# Test Meta Tag + Header
+my $app4 = builder {
+    enable 'Session',
+        state => Plack::Session::State::Cookie->new(session_key => 'sid');
+    enable 'CSRFBlock', token_length => 8, add_meta => 1;
+    $mapped;
+};
+
+test_psgi app => $app4, client => sub {
+    my $cb = shift;
+
+    my $res = $cb->(GET "http://localhost/form/html");
+    is $res->code, 200;
+
+    my $h_cookie = $res->header('Set-Cookie');
+    $h_cookie =~ /sid=([^; ]+)/;
+    my $sid = $1;
+
+    ok $res->content =~ /<input type="hidden" name="SEC" value="([0-9a-f]{8})" \/>/;
+    my $token = $1;
+    ok $res->content =~ /<meta name="csrftoken" content="([0-9a-f]{8})"\/>/;
+    my $meta_token = $1;
+
+    is $token => $meta_token, 'Got correct token in meta tag';
+
+    $res = $cb->(
+        POST "http://localhost/post",
+        [name => 'Plack'],
+        Cookie => "sid=$sid", 'X-CSRF-Token' => $meta_token
+    );
+    is $res->code, 200, 'w/Token in Header Only';
 };
 
 
