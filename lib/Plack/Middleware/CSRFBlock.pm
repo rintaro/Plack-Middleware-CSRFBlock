@@ -243,12 +243,14 @@ to your application, in most cases. Here is the strategy:
 
 When the application response content-type is "text/html" or
 "application/xhtml+xml", this inserts hidden input tag that contains token
-string into C<form>s in the response body.  It also adds a meta tag with
-the name "c"For example, the application
-response body is:
+string into C<form>s in the response body.  It can also adds an optional meta
+tag (by setting C<add_meta> to true) with the default name "csrftoken".
+For example, the application response body is:
 
   <html>
-    <head><title>input form</title></head>
+    <head>
+        <title>input form</title>
+    </head>
     <body>
       <form action="/receive" method="post">
         <input type="text" name="email" /><input type="submit" />
@@ -258,7 +260,9 @@ response body is:
 this becomes:
 
   <html>
-    <head><meta<title>input form</title></head>
+    <head><meta name="csrftoken" content="0f15ba869f1c0d77"/>
+        <title>input form</title>
+    </head>
     <body>
       <form action="/api" method="post"><input type="hidden" name="SEC" value="0f15ba869f1c0d77" />
         <input type="text" name="email" /><input type="submit" />
