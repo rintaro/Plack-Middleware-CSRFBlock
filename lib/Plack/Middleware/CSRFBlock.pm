@@ -59,7 +59,7 @@ sub call {
     ) {
         my $ct = $1;
         my $token = $session->{$self->session_key}
-            or return $self->token_not_found;
+            or return $self->token_not_found($env);
 
         my $cl = $env->{CONTENT_LENGTH};
         my $re = $self->_param_re->{$ct};
