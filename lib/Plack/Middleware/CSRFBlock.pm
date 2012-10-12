@@ -127,7 +127,12 @@ sub call {
         }
 
         my @out;
-        my $http_host = exists $env->{HTTP_HOST} ? $env->{HTTP_HOST} : $env->{SERVER_NAME};
+        my $http_host
+            = exists $env->{HTTP_X_FORWARDED_HOST}
+            ? $env->{HTTP_X_FORWARDED_HOST}
+            : exists $env->{HTTP_HOST} ? $env->{HTTP_HOST}
+            :                            $env->{SERVER_NAME};
+ 
         my $token = $session->{$self->session_key} ||= $self->_token_generator->();
         my $parameter_name = $self->parameter_name;
 
@@ -230,7 +235,7 @@ this becomes:
   <html>
     <head><title>input form</title></head>
     <body>
-      <form action="/api" method="post"><input type="hidden" name="SEC" value="0f15ba869f1c0d77" />
+      <form action="/receive" method="post"><input type="hidden" name="SEC" value="0f15ba869f1c0d77" />
         <input type="text" name="email" /><input type="submit" />
       </form>
   </html>
