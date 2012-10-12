@@ -62,9 +62,10 @@ sub call {
 
     # input filter
     if(
-        $env->{REQUEST_METHOD} =~ m{^post$}i and
-        ($env->{CONTENT_TYPE} =~ m{^(application/x-www-form-urlencoded)}i or
-         $env->{CONTENT_TYPE} =~ m{^(multipart/form-data)}i)
+        $env->{REQUEST_METHOD} =~ m{^post$}i &&
+        ($env->{CONTENT_TYPE} &&
+            ($env->{CONTENT_TYPE} =~ m{^(application/x-www-form-urlencoded)}i ||
+             $env->{CONTENT_TYPE} =~ m{^(multipart/form-data)}i))
     ) {
         my $ct = $1;
         my $token = $session->{$self->session_key}
@@ -141,7 +142,7 @@ sub call {
 
     return $self->response_cb($self->app->($env), sub {
         my $res = shift;
-        my $ct = Plack::Util::header_get($res->[1], 'Content-Type');
+        my $ct = Plack::Util::header_get($res->[1], 'Content-Type') || '';
         if($ct !~ m{^text/html}i and $ct !~ m{^application/xhtml[+]xml}i){
             return $res;
         }
