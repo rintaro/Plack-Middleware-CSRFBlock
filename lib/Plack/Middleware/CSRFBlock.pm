@@ -9,7 +9,8 @@ use Plack::TempBuffer;
 use Plack::Util;
 use Digest::SHA1;
 use Plack::Util::Accessor qw(
-    parameter_name token_length session_key blocked onetime
+    parameter_name header_name add_meta meta_name token_length
+    session_key blocked onetime
     _param_re _token_generator
 );
 
@@ -19,6 +20,14 @@ sub prepare_app {
     $self->parameter_name('SEC') unless defined $self->parameter_name;
     $self->token_length(16) unless defined $self->token_length;
     $self->session_key('csrfblock.token') unless defined $self->session_key;
+    $self->meta_name('csrftoken') unless defined $self->meta_name;
+    $self->add_meta(0) unless defined $self->meta_name;
+
+    # Upper-case header name and replace - with _
+    my $header_name = uc($self->header_name || 'X-CSRF-Token') =~ s/-/_/gr;
+    # Add 'HTTP_' to beginning, and set the new header_name
+    $self->header_name( "HTTP_" . $header_name );
+
 
     my $parameter_name = $self->parameter_name;
     my $token_length = $self->token_length;
@@ -53,9 +62,10 @@ sub call {
 
     # input filter
     if(
-        $env->{REQUEST_METHOD} =~ m{^post$}i and
-        ($env->{CONTENT_TYPE} =~ m{^(application/x-www-form-urlencoded)}i or
-         $env->{CONTENT_TYPE} =~ m{^(multipart/form-data)}i)
+        $env->{REQUEST_METHOD} =~ m{^post$}i &&
+        ($env->{CONTENT_TYPE} &&
+            ($env->{CONTENT_TYPE} =~ m{^(application/x-www-form-urlencoded)}i ||
+             $env->{CONTENT_TYPE} =~ m{^(multipart/form-data)}i))
     ) {
         my $ct = $1;
         my $token = $session->{$self->session_key}
@@ -76,6 +86,10 @@ sub call {
         my $done;
         my $found;
         my $spin = 0;
+
+        # If the X-CSRF-Token header is set, then we know we're good
+        $found = 1 if ($env->{ $self->header_name } || '') eq $token;
+
         while ($cl) {
             $input->read(my $chunk, $cl < 8192 ? $cl : 8192);
             my $read = length $chunk;
@@ -116,12 +130,19 @@ sub call {
         else {
             $input->seek(0,0);
         }
+    } elsif ( $env->{REQUEST_METHOD} =~ m{^post$}i ) {
+        my $token = $session->{$self->session_key}
+            or return $self->token_not_found;
+        # For any other post request, we're good if the X-CSRF-Token
+        # Header is set correctly.  Otherwise, die.
+        return $self->token_not_found($env)
+            unless ($env->{ $self->header_name } || '') eq $token;
     }
 
 
     return $self->response_cb($self->app->($env), sub {
         my $res = shift;
-        my $ct = Plack::Util::header_get($res->[1], 'Content-Type');
+        my $ct = Plack::Util::header_get($res->[1], 'Content-Type') || '';
         if($ct !~ m{^text/html}i and $ct !~ m{^application/xhtml[+]xml}i){
             return $res;
         }
@@ -139,16 +160,25 @@ sub call {
 
                 no warnings 'uninitialized';
                 if(
-                    lc($tag) ne 'form' or
-                    lc($attr->{'method'}) ne 'post' or
-                    ($attr->{'action'} =~ m{^https?://([^/:]+)[/:]} and $1 ne $http_host)
+                    lc($tag) eq 'form' and
+                    lc($attr->{'method'}) eq 'post' and
+                    !($attr->{'action'} =~ m{^https?://([^/:]+)[/:]} and $1 ne $http_host)
                 ) {
-                    return;
+                    push @out, qq{<input type="hidden" name="$parameter_name" value="$token" />};
                 }
+
+                # If we found the head tag and we want to add a <meta> tag
+                if( lc($tag) eq 'head' && $self->add_meta ) {
+                    # Put the csrftoken in a <meta> element in <head>
+                    # So that you can get the token in javascript in your
+                    # App to set in X-CSRF-Token header for all your AJAX
+                    # Requests
+                    my $name = $self->meta_name;
+                    push @out, "<meta name=\"$name\" content=\"$token\"/>";
+                }
+
                 # TODO: determine xhtml or html?
-
-                push @out, qq{<input type="hidden" name="$parameter_name" value="$token" />};
-
+                return;
             }, "tagname, attr, text"],
             default_h => [\@out , '@{text}'],
         );
@@ -214,11 +244,14 @@ to your application, in most cases. Here is the strategy:
 
 When the application response content-type is "text/html" or
 "application/xhtml+xml", this inserts hidden input tag that contains token
-string into C<form>s in the response body. For example, the application
-response body is:
+string into C<form>s in the response body.  It can also adds an optional meta
+tag (by setting C<add_meta> to true) with the default name "csrftoken".
+For example, the application response body is:
 
   <html>
-    <head><title>input form</title></head>
+    <head>
+        <title>input form</title>
+    </head>
     <body>
       <form action="/receive" method="post">
         <input type="text" name="email" /><input type="submit" />
@@ -228,7 +261,9 @@ response body is:
 this becomes:
 
   <html>
-    <head><title>input form</title></head>
+    <head><meta name="csrftoken" content="0f15ba869f1c0d77"/>
+        <title>input form</title>
+    </head>
     <body>
       <form action="/api" method="post"><input type="hidden" name="SEC" value="0f15ba869f1c0d77" />
         <input type="text" name="email" /><input type="submit" />
@@ -271,6 +306,28 @@ Supports C<application/x-www-form-urlencoded> and C<multipart/form-data>.
 =item parameter_name (default:"SEC")
 
 Name of the input tag for the token.
+
+=item add_meta (default: 0)
+
+Whether or not to append a C<meta> tag to pages that
+contains the token.  This is useful for getting the
+value of the token from Javascript.  The name of the
+meta tag can be set via C<meta_name> which defaults
+to C<csrftoken>.
+
+=item meta_name (default:"csrftoken")
+
+Name of the C<meta> tag added to the C<head> tag of
+output pages.  The content of this C<meta> tag will be
+the token value.  The purpose of this tag is to give
+javascript access to the token if needed for AJAX requests.
+
+=item header_name (default:"X-CSRF-Token")
+
+Name of the HTTP Header that the token can be sent in.
+This is useful for sending the header for Javascript AJAX requests,
+and this header is required for any post request that is not
+of type C<application/x-www-form-urlencoded> or C<multipart/form-data>.
 
 =item token_length (default:16);
 

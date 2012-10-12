@@ -1,7 +1,11 @@
 use inc::Module::Install;
+use Module::Install::ReadmeFromPod;
+use Module::Install::Repository;
+use Module::Install::AuthorTests;
+
 name 'Plack-Middleware-CSRFBlock';
 all_from 'lib/Plack/Middleware/CSRFBlock.pm';
-#readme_from 'lib/Plack/Middleware/CSRFBlock.pm';
+readme_from 'lib/Plack/Middleware/CSRFBlock.pm';
 #githubmeta;
 
 requires 'Plack';

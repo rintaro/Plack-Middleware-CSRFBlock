@@ -3,9 +3,9 @@ NAME
 
 SYNOPSIS
       use Plack::Builder;
-  
+
       my $app = sub { ... }
-  
+
       builder {
         enable 'Session';
         enable 'CSRFBlock';
@@ -19,11 +19,14 @@ DESCRIPTION
     output filter
         When the application response content-type is "text/html" or
         "application/xhtml+xml", this inserts hidden input tag that contains
-        token string into "form"s in the response body. For example, the
-        application response body is:
+        token string into "form"s in the response body. It can also adds an
+        optional meta tag (by setting "add_meta" to true) with the default
+        name "csrftoken". For example, the application response body is:
 
           <html>
-            <head><title>input form</title></head>
+            <head>
+                <title>input form</title>
+            </head>
             <body>
               <form action="/receive" method="post">
                 <input type="text" name="email" /><input type="submit" />
@@ -33,7 +36,9 @@ DESCRIPTION
         this becomes:
 
           <html>
-            <head><title>input form</title></head>
+            <head><meta name="csrftoken" content="0f15ba869f1c0d77"/>
+                <title>input form</title>
+            </head>
             <body>
               <form action="/api" method="post"><input type="hidden" name="SEC" value="0f15ba869f1c0d77" />
                 <input type="text" name="email" /><input type="submit" />
@@ -51,8 +56,44 @@ DESCRIPTION
         "multipart/form-data".
 
 OPTIONS
+      use Plack::Builder;
+  
+      my $app = sub { ... }
+  
+      builder {
+        enable 'Session';
+        enable 'CSRFBlock',
+          parameter_name => 'csrf_secret',
+          token_length => 20,
+          session_key => 'csrf_token',
+          blocked => sub {
+            [302, [Location => 'http://www.google.com'], ['']];
+          },
+          onetime => 0,
+          ;
+        $app;
+      }
+
     parameter_name (default:"SEC")
         Name of the input tag for the token.
+
+    add_meta (default: 0)
+        Whether or not to append a "meta" tag to pages that contains the
+        token. This is useful for getting the value of the token from
+        Javascript. The name of the meta tag can be set via "meta_name"
+        which defaults to "csrftoken".
+
+    meta_name (default:"csrftoken")
+        Name of the "meta" tag added to the "head" tag of output pages. The
+        content of this "meta" tag will be the token value. The purpose of
+        this tag is to give javascript access to the token if needed for
+        AJAX requests.
+
+    header_name (default:"X-CSRF-Token")
+        Name of the HTTP Header that the token can be sent in. This is
+        useful for sending the header for Javascript AJAX requests, and this
+        header is required for any post request that is not of type
+        "application/x-www-form-urlencoded" or "multipart/form-data".
 
     token_length (default:16);
         Length of the token string. Max value is 40.
